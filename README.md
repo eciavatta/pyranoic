@@ -1,2 +1,2 @@
-# flags-finder
+# flags-hunter
 
