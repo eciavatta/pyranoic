@@ -4,6 +4,7 @@ Entry point of the tool.
 """
 
 import click
+from .capture import Capture
 
 @click.group()
 def cli():
@@ -22,6 +23,8 @@ def init():
 @cli.command()
 def run():
     """Start capturing packets."""
+    capture = Capture(capture_dir='/tmp')
+    capture.local_chunked_capture('wlp2s0')
 
 
 if __name__ == "__main__":
