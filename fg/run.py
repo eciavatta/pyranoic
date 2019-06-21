@@ -19,6 +19,16 @@ class RunConfig(object):
 
 
 def handle(config):
+    capture = create_capture(config, False)
+
+    if not config.is_daemon:
+        try:
+            capture.join()
+        except KeyboardInterrupt:
+            capture.stop()
+
+
+def create_capture(config, is_live):
     conf = ConfigParser()
     conf.read(CONFIG_FILENAME)
 
@@ -40,12 +50,11 @@ def handle(config):
         identity_file = conf['REMOTE'].get('IdentityFile', None)
         wireshark_path = conf['DEFAULT'].get('WiresharkPath')
 
-        capture.remote_capture(host, interface, user, port, identity_file, False, wireshark_path, filters)
+        capture.remote_capture(host, interface, user, port, identity_file, is_live, wireshark_path, filters)
     else:
-        capture.local_capture(interface, filters)
+        if is_live:
+            fatal_error('Cannot stream packets from local interface to Wireshark. You can use wireshark directly!')
+        else:
+            capture.local_capture(interface, filters)
 
-    if not config.is_daemon:
-        try:
-            capture.join()
-        except KeyboardInterrupt:
-            capture.stop()
+    return capture

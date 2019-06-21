@@ -2,8 +2,6 @@ from os import devnull
 from os.path import exists, join
 from subprocess import Popen, PIPE
 
-import click
-
 from .utils import fatal_error
 
 """
@@ -59,9 +57,7 @@ class Capture:
             '-n' if self._disable_dns_resolution else '',
         ]
         if not filters:
-            if click.prompt('Do you want to exclude ssh traffic from capture', type=click.Choice(['yes', 'no']),
-                            prompt_suffix='? ') == 'yes':
-                command.extend(['not', 'port', '22'])
+            command.extend(['not', 'port', '22'])  # exclude ssh traffic -> exponential
         else:
             command.extend(filters)
 

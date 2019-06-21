@@ -73,5 +73,16 @@ def run(daemon, path, capture_filters):
     handle(RunConfig(daemon, path, capture_filters))
 
 
+@cli.command()
+@click.option('--path', default=getcwd(), required=True, callback=check_valid_project, show_default=True)
+@click.argument('capture-filters', nargs=-1)
+def ws_live(path, capture_filters):
+    """Start capturing packets and displaying on Wireshark."""
+
+    from .run import RunConfig, create_capture
+
+    create_capture(RunConfig(True, path, capture_filters), True)
+
+
 if __name__ == "__main__":
     cli()
