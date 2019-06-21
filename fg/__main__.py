@@ -1,3 +1,3 @@
-from fg.main import run
+from .main import cli
 
-run()
+cli()
