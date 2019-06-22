@@ -1,3 +1,4 @@
+from configparser import ConfigParser
 from importlib.util import spec_from_file_location, module_from_spec
 from os.path import exists, join
 
@@ -44,3 +45,21 @@ def read_packets(file_path):
 
 def service_path(project_path, service_name):
     return join(project_path, SERVICES_DIRNAME, service_name)
+
+
+def read_config(file_path):
+    config = ConfigParser()
+    try:
+        config.read(file_path)
+    except Exception as e:
+        fatal_error(str(e))
+
+    return config
+
+
+def write_config(config, file_path):
+    try:
+        with open(file_path, 'w') as config_file:
+            config.write(config_file)
+    except Exception as e:
+        fatal_error(str(e))

@@ -92,6 +92,8 @@ def service(ctx, create, edit, rm, inline, name, port, p_type, path, display_fil
     if any(v is True for v in [create, edit, rm]):
         if name is None:
             name = click.prompt('Service name')
+
+    if create:
         if port is None and not display_filters:
             port = click.prompt('Service port', type=int)
         if port is not None and display_filters:
