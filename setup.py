@@ -7,7 +7,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'Click',
-        'scapy'
+        'pyshark'
     ],
     entry_points='''
         [console_scripts]

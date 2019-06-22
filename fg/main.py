@@ -74,6 +74,44 @@ def run(daemon, path, capture_filters):
 
 
 @cli.command()
+@click.pass_context
+@click.option('--create', '-c', is_flag=True, default=False)
+@click.option('--edit', '-e', is_flag=True, default=False)
+@click.option('--rm', is_flag=True, default=False)
+@click.option('--inline', is_flag=True, default=False)
+@click.option('--name', '-n')
+@click.option('--port', '-p')
+@click.option('--type', '-t', 'p_type', type=click.Choice(['tcp', 'http', 'raw']), default='raw')
+@click.option('--path', default=getcwd(), required=True, callback=check_valid_project, show_default=True)
+@click.argument('display-filters', nargs=-1)
+def service(ctx, create, edit, rm, inline, name, port, p_type, path, display_filters):
+    """Display, create, edit or remove services."""
+
+    from .service import ServiceOptions, handle_list, handle_create, handle_edit, handle_remove
+
+    if any(v is True for v in [create, edit, rm]):
+        if name is None:
+            name = click.prompt('Service name')
+        if port is None and not display_filters:
+            port = click.prompt('Service port', type=int)
+        if port is not None and display_filters:
+            ctx.fail('Cannot specify both port and display-filters')
+        if p_type is None:
+            p_type = click.prompt('Service port', type=click.Choice(['tcp', 'http', 'raw']))
+
+    options = ServiceOptions(inline, name, port, p_type, path, display_filters)
+
+    if create:
+        handle_create(options)
+    elif edit:
+        handle_edit(options)
+    elif rm:
+        handle_remove(options)
+    else:
+        handle_list(options)
+
+
+@cli.command()
 @click.option('--path', default=getcwd(), required=True, callback=check_valid_project, show_default=True)
 @click.argument('capture-filters', nargs=-1)
 def ws_live(path, capture_filters):
