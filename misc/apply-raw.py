@@ -12,5 +12,5 @@ Possible return values:
 from fg.constants import *
 
 
-def apply_raw(packet):
+def apply(packet):
     return NORMAL

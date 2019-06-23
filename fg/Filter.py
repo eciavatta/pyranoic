@@ -1,7 +1,7 @@
 import pyshark
 from collections import defaultdict
 
-#cap = pyshark.FileCapture('~/traffic/prova.cap')
+# cap = pyshark.FileCapture('~/traffic/prova.cap')
 
 filtered_cap = pyshark.FileCapture('/home/gio/traffic/prova.pcap', display_filter='tcp')
 

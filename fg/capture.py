@@ -1,8 +1,10 @@
 from os import devnull
-from os.path import exists, join
 from subprocess import Popen, PIPE
 
-from .utils import fatal_error
+from .utils import *
+from .constants import *
+
+from os.path import join, exists
 
 """
 Capture packets from local or remote interface and stream back to callback.
@@ -10,10 +12,6 @@ Capture packets from local or remote interface and stream back to callback.
 
 
 class Capture:
-
-    _FILENAME = 'capture.pcap'
-    _CALLBACK_INTERVAL = 5
-    _MAX_FILESIZE = 64*1000
 
     def __init__(self, capture_dir, file_splitting_interval, disable_dns_resolution, tshark_path):
         self._capture_dir = capture_dir
@@ -27,8 +25,8 @@ class Capture:
         command = [
             self._tshark_path,
             '-b', f'interval:{self._file_splitting_interval}',
-            '-b', f'filesize:{self._MAX_FILESIZE}',
-            '-w', join(self._capture_dir, self._FILENAME),
+            '-b', f'filesize:{MAX_CAPTURE_FILESIZE}',
+            '-w', join(self._capture_dir, CAPTURE_FILENAME),
             '-i', interface,
             '-q',
             '-n' if self._disable_dns_resolution else ''
@@ -74,8 +72,8 @@ class Capture:
             ts_command = [
                 self._tshark_path,
                 '-b', f'interval:{self._file_splitting_interval}',
-                '-b', f'filesize:{self._MAX_FILESIZE}',
-                '-w', join(self._capture_dir, self._FILENAME),
+                '-b', f'filesize:{MAX_CAPTURE_FILESIZE}',
+                '-w', join(self._capture_dir, CAPTURE_FILENAME),
                 '-i', '-',
                 '-q'
             ]

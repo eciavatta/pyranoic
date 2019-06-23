@@ -1,7 +1,10 @@
 import os
-from os.path import dirname, isdir
+from configparser import ConfigParser
+from os.path import exists, join, dirname, isdir
 from shutil import rmtree
 from tempfile import mkstemp
+
+import click
 
 from .constants import *
 from .utils import *
@@ -9,9 +12,6 @@ from .utils import *
 """
 Run command, which capture packets and save them to disk.
 """
-
-CONFIG_FILENAME = 'service.conf'
-APPLY_SCRIPT_FILENAME = 'apply-script.py'
 
 
 class ServiceOptions(object):
@@ -50,12 +50,12 @@ def handle_create(options):
 
     config = ConfigParser()
     if options.port is not None:
-        config['DEFAULT']['DisplayFilters'] = f'tcp.port == {options.port}'
+        config['DEFAULT']['DisplayFilters'] = f'"tcp.port == {options.port}"'
     config['DEFAULT']['Type'] = options.p_type
-    if options.display_filters:
-        config['DEFAULT']['DisplayFilters'] = ''.join(options.display_filters)
+    if options.display_filters is not None:
+        config['DEFAULT']['DisplayFilters'] = f'"{options.display_filters}"'
 
-    write_config(config, join(service_dir, CONFIG_FILENAME))
+    write_config(config, join(service_dir, SERVICE_CONFIG_FILENAME))
 
 
 def handle_edit(options):
@@ -65,18 +65,18 @@ def handle_edit(options):
     if not isdir(service_dir):
         fatal_error(f'Cannot find service {options.name}')
 
-    config_path = join(service_dir, CONFIG_FILENAME)
+    config_path = join(service_dir, SERVICE_CONFIG_FILENAME)
     config = read_config(config_path)
     p_type = options.p_type
 
     if options.port is not None:
-        config['DEFAULT']['DisplayFilters'] = f'tcp.port == {options.port}'
+        config['DEFAULT']['DisplayFilters'] = f'"tcp.port == {options.port}"'
     if p_type is not None:
         config['DEFAULT']['Type'] = p_type
     else:
         p_type = config['DEFAULT'].get('Type')
-    if options.display_filters:
-        config['DEFAULT']['DisplayFilters'] = ''.join(options.display_filters)
+    if options.display_filters is not None:
+        config['DEFAULT']['DisplayFilters'] = f'"{options.display_filters}"'
 
     write_config(config, config_path)
 
@@ -106,8 +106,8 @@ def handle_list(options):
         click.echo('List of services created:')
     for service_name in services_names:
         service_dir = service_path(options.path, service_name)
-        config = read_config(join(service_dir, CONFIG_FILENAME))["DEFAULT"]
-        click.echo(f'\t- {service_name} [type = "{config.get("Type")}", filters = "{config.get("DisplayFilters")}"]')
+        config = read_config(join(service_dir, SERVICE_CONFIG_FILENAME))["DEFAULT"]
+        click.echo(f'\t- {service_name} [type = "{config.get("Type")}", filters = {config.get("DisplayFilters")}]')
 
 
 def _edit_apply_file(p_type, apply_file_path):
@@ -122,10 +122,10 @@ def _edit_apply_file(p_type, apply_file_path):
             apply_module = load_module(apply_file_path)
 
             for packet in test_packets:
-                result = apply_module.apply_raw(packet)
+                result = apply_module.apply(packet)
                 if result not in [NORMAL, SUSPICIOUS, MARKED, FILTER_OUT]:
                     raise ValueError('Script returns an invalid value')
-                results.append(apply_module.apply_raw(packet))
+                results.append(result)
         except Exception as e:
             click.echo('An error occurred while executing the provided script:')
             click.secho(str(e), err=True, fg='red')

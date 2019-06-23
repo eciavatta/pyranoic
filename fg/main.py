@@ -2,7 +2,7 @@ from os import getcwd
 
 import click
 
-from .utils import check_valid_path, check_valid_project
+from .utils import *
 
 """
 Entry point of the tool.
@@ -32,7 +32,7 @@ def init(ctx, inline, interface, remote, host, port, user, identity_file, interv
          wireshark_path, path):
     """Create an empty project and configure it."""
 
-    from .init import InitConfig, handle
+    from .init import InitOptions, handle
 
     if interface is None:
         if inline:
@@ -43,7 +43,7 @@ def init(ctx, inline, interface, remote, host, port, user, identity_file, interv
         if inline:
             remote = False
         else:
-            remote = click.prompt('Is remote interface', type=click.Choice(['yes', 'no']), prompt_suffix='? ') == 'yes'
+            remote = click.confirm('Is remote interface', default=False)
     if remote:
         if host is None:
             if inline:
@@ -56,7 +56,7 @@ def init(ctx, inline, interface, remote, host, port, user, identity_file, interv
             user = click.prompt('User', default='None', show_default=True)
             user = None if user == 'None' else user
 
-    handle(InitConfig(
+    handle(InitOptions(
         interface, remote, host, port, user, identity_file, interval, dns_resolution, tshark_path, wireshark_path, path
     ))
 
@@ -64,13 +64,13 @@ def init(ctx, inline, interface, remote, host, port, user, identity_file, interv
 @cli.command()
 @click.option('--daemon', '-d', is_flag=True, default=False, show_default=True)
 @click.option('--path', default=getcwd(), required=True, callback=check_valid_project, show_default=True)
-@click.argument('capture-filters', nargs=-1)
+@click.option('--capture-filters')
 def run(daemon, path, capture_filters):
     """Start capturing packets."""
 
-    from .run import RunConfig, handle
+    from .run import RunOptions, handle
 
-    handle(RunConfig(daemon, path, capture_filters))
+    handle(RunOptions(daemon, path, capture_filters))
 
 
 @cli.command()
@@ -79,29 +79,33 @@ def run(daemon, path, capture_filters):
 @click.option('--edit', '-e', is_flag=True, default=False)
 @click.option('--rm', is_flag=True, default=False)
 @click.option('--inline', is_flag=True, default=False)
-@click.option('--name', '-n')
 @click.option('--port', '-p')
-@click.option('--type', '-t', 'p_type', type=click.Choice(['tcp', 'http', 'raw']), default='raw')
+@click.option('--type', '-t', 'p_type', type=click.Choice(['tcp', 'http', 'raw']), default=None)
 @click.option('--path', default=getcwd(), required=True, callback=check_valid_project, show_default=True)
-@click.argument('display-filters', nargs=-1)
-def service(ctx, create, edit, rm, inline, name, port, p_type, path, display_filters):
+@click.option('--display-filters')
+@click.argument('service-name', nargs=-1)
+def service(ctx, create, edit, rm, inline, port, p_type, path, display_filters, service_name):
     """Display, create, edit or remove services."""
 
     from .service import ServiceOptions, handle_list, handle_create, handle_edit, handle_remove
 
     if any(v is True for v in [create, edit, rm]):
-        if name is None:
-            name = click.prompt('Service name')
+        if not service_name:
+            ctx.fail('Argument SERVICE_NAME is required')
+        elif len(service_name) > 1:
+            ctx.fail('Only one argument for SERVICE_NAME is required')
+        else:
+            service_name = service_name[0]
 
     if create:
-        if port is None and not display_filters:
+        if not port and not display_filters:
             port = click.prompt('Service port', type=int)
-        if port is not None and display_filters:
+        if port and display_filters:
             ctx.fail('Cannot specify both port and display-filters')
-        if p_type is None:
-            p_type = click.prompt('Service port', type=click.Choice(['tcp', 'http', 'raw']))
+        if not p_type:
+            p_type = click.prompt('Service type', type=click.Choice(['tcp', 'http', 'raw']))
 
-    options = ServiceOptions(inline, name, port, p_type, path, display_filters)
+    options = ServiceOptions(inline, service_name, port, p_type, path, display_filters)
 
     if create:
         handle_create(options)
@@ -115,13 +119,24 @@ def service(ctx, create, edit, rm, inline, name, port, p_type, path, display_fil
 
 @cli.command()
 @click.option('--path', default=getcwd(), required=True, callback=check_valid_project, show_default=True)
+@click.argument('service-name', nargs=1)
+def watch(path, service_name):
+    """Watch a service and analyze the packet flow"""
+
+    from .watch import WatchOptions, handle
+
+    handle(WatchOptions(path, service_name))
+
+
+@cli.command()
+@click.option('--path', default=getcwd(), required=True, callback=check_valid_project, show_default=True)
 @click.argument('capture-filters', nargs=-1)
 def ws_live(path, capture_filters):
     """Start capturing packets and displaying on Wireshark."""
 
-    from .run import RunConfig, create_capture
+    from .run import RunOptions, create_capture
 
-    create_capture(RunConfig(True, path, capture_filters), True)
+    create_capture(RunOptions(True, path, capture_filters), True)
 
 
 if __name__ == "__main__":

@@ -1,15 +1,13 @@
-from configparser import ConfigParser
-from importlib.util import spec_from_file_location, module_from_spec
-from os.path import exists, join
-
-import click
-import pyshark
-
-from .init import CONFIG_FILENAME, PACKETS_DIRNAME, SERVICES_DIRNAME
+"""
+Tool utilities.
+"""
 
 
 def check_valid_path(ctx, _, path):
-    if (exists(join(path, CONFIG_FILENAME)) or
+    from os.path import exists, join
+    from .constants import PROJECT_CONFIG_FILENAME, PACKETS_DIRNAME, SERVICES_DIRNAME
+
+    if (exists(join(path, PROJECT_CONFIG_FILENAME)) or
             exists(join(path, PACKETS_DIRNAME)) or
             exists(join(path, SERVICES_DIRNAME))):
 
@@ -18,7 +16,10 @@ def check_valid_path(ctx, _, path):
 
 
 def check_valid_project(ctx, _, path):
-    if not (exists(join(path, CONFIG_FILENAME)) and
+    from os.path import exists, join
+    from .constants import PROJECT_CONFIG_FILENAME, PACKETS_DIRNAME, SERVICES_DIRNAME
+
+    if not (exists(join(path, PROJECT_CONFIG_FILENAME)) and
             exists(join(path, PACKETS_DIRNAME)) and
             exists(join(path, SERVICES_DIRNAME))):
 
@@ -27,11 +28,15 @@ def check_valid_project(ctx, _, path):
 
 
 def fatal_error(message):
-    click.echo(message, err=True)
+    from click import echo
+
+    echo(message, err=True)
     exit(-1)
 
 
 def load_module(file_path):
+    from importlib.util import spec_from_file_location, module_from_spec
+
     spec = spec_from_file_location("apply_module", file_path)
     module = module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -39,15 +44,22 @@ def load_module(file_path):
     return module
 
 
-def read_packets(file_path):
-    return pyshark.FileCapture(file_path, keep_packets=False)
+def read_packets(file_path, keep_packets=False, filters=None):
+    from pyshark import FileCapture
+
+    return FileCapture(file_path, keep_packets, filters)
 
 
 def service_path(project_path, service_name):
+    from os.path import join
+    from .constants import SERVICES_DIRNAME
+
     return join(project_path, SERVICES_DIRNAME, service_name)
 
 
 def read_config(file_path):
+    from configparser import ConfigParser
+
     config = ConfigParser()
     try:
         config.read(file_path)
@@ -63,3 +75,10 @@ def write_config(config, file_path):
             config.write(config_file)
     except Exception as e:
         fatal_error(str(e))
+
+
+def file_name_match(file_path, regex_pattern):
+    from os.path import basename
+    from re import match
+
+    return match(regex_pattern, basename(file_path))

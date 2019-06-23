@@ -1,16 +1,15 @@
-from configparser import ConfigParser
 from os.path import join
 
 from .capture import Capture
-from .init import CONFIG_FILENAME, PACKETS_DIRNAME
-from .utils import fatal_error
+from .constants import *
+from .utils import *
 
 """
 Run command, which capture packets and save them to disk.
 """
 
 
-class RunConfig(object):
+class RunOptions(object):
 
     def __init__(self, daemon, path, capture_filters):
         self.is_daemon = daemon
@@ -18,37 +17,36 @@ class RunConfig(object):
         self.capture_filters = capture_filters
 
 
-def handle(config):
-    capture = create_capture(config, False)
+def handle(options):
+    capture = create_capture(options, False)
 
-    if not config.is_daemon:
+    if not options.is_daemon:
         try:
             capture.join()
         except KeyboardInterrupt:
             capture.stop()
 
 
-def create_capture(config, is_live):
-    conf = ConfigParser()
-    conf.read(CONFIG_FILENAME)
+def create_capture(options, is_live):
+    config = read_config(join(options.path, PROJECT_CONFIG_FILENAME))
 
-    if 'DEFAULT' not in conf:
+    if 'DEFAULT' not in config:
         fatal_error('Config file corrupted')
 
-    file_splitting_interval = conf['DEFAULT'].getint('ChunkInterval')
-    disable_dns_resolution = not conf['DEFAULT'].getboolean('DnsResolutionEnabled')
-    tshark_path = conf['DEFAULT'].get('TSharkPath')
-    interface = conf['DEFAULT'].get('Interface')
-    filters = config.capture_filters
+    file_splitting_interval = config['DEFAULT'].getint('ChunkInterval')
+    disable_dns_resolution = not config['DEFAULT'].getboolean('DnsResolutionEnabled')
+    tshark_path = config['DEFAULT'].get('TSharkPath')
+    interface = config['DEFAULT'].get('Interface')
+    filters = options.capture_filters
 
-    capture = Capture(join(config.path, PACKETS_DIRNAME), file_splitting_interval, disable_dns_resolution, tshark_path)
+    capture = Capture(join(options.path, PACKETS_DIRNAME), file_splitting_interval, disable_dns_resolution, tshark_path)
 
-    if 'REMOTE' in conf:
-        host = conf['REMOTE'].get('Host')
-        user = conf['REMOTE'].get('User', None)
-        port = conf['REMOTE'].getint('Port', 22)
-        identity_file = conf['REMOTE'].get('IdentityFile', None)
-        wireshark_path = conf['DEFAULT'].get('WiresharkPath')
+    if 'REMOTE' in config:
+        host = config['REMOTE'].get('Host')
+        user = config['REMOTE'].get('User', None)
+        port = config['REMOTE'].getint('Port', 22)
+        identity_file = config['REMOTE'].get('IdentityFile', None)
+        wireshark_path = config['DEFAULT'].get('WiresharkPath')
 
         capture.remote_capture(host, interface, user, port, identity_file, is_live, wireshark_path, filters)
     else:

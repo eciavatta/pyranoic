@@ -1,18 +1,16 @@
 from configparser import ConfigParser
-
 from os import mkdir
 from os.path import exists, join
+
+from .constants import *
+from .utils import *
 
 """
 Init command, which create and prepare workspace.
 """
 
-CONFIG_FILENAME = 'project.conf'
-PACKETS_DIRNAME = 'packets'
-SERVICES_DIRNAME = 'services'
 
-
-class InitConfig(object):
+class InitOptions(object):
 
     def __init__(self, interface, remote, host, port, user, identity_file, interval, dns_resolution,
                  tshark_path, wireshark_path, path):
@@ -29,33 +27,32 @@ class InitConfig(object):
         self.path = path
 
 
-def handle(config):
-    conf = ConfigParser()
-    conf['DEFAULT'] = {
-        'Interface': config.interface,
-        'ChunkInterval': config.interval,
-        'DnsResolutionEnabled': config.dns_resolution_enabled,
-        'TSharkPath': config.tshark_path,
-        'WiresharkPath': config.wireshark_path
+def handle(options):
+    config = ConfigParser()
+    config['DEFAULT'] = {
+        'Interface': options.interface,
+        'ChunkInterval': options.interval,
+        'DnsResolutionEnabled': options.dns_resolution_enabled,
+        'TSharkPath': options.tshark_path,
+        'WiresharkPath': options.wireshark_path
     }
 
-    if config.is_remote:
+    if options.is_remote:
         tmp = {
-            'Host': config.host,
-            'Port': config.port
+            'Host': options.host,
+            'Port': options.port
         }
-        if config.user is not None:
-            tmp['User'] = config.user
-        if config.identity_file is not None:
-            tmp['IdentityFile'] = config.identity_file
+        if options.user is not None:
+            tmp['User'] = options.user
+        if options.identity_file is not None:
+            tmp['IdentityFile'] = options.identity_file
 
-        conf['REMOTE'] = tmp
+        config['REMOTE'] = tmp
 
-    if not exists(config.path):
-        mkdir(config.path)
+    if not exists(options.path):
+        mkdir(options.path)
 
-    mkdir(join(config.path, PACKETS_DIRNAME))
-    mkdir(join(config.path, SERVICES_DIRNAME))
+    mkdir(join(options.path, PACKETS_DIRNAME))
+    mkdir(join(options.path, SERVICES_DIRNAME))
 
-    with open(join(config.path, CONFIG_FILENAME), 'w') as configfile:
-        conf.write(configfile)
+    write_config(config, join(options.path, PROJECT_CONFIG_FILENAME))
