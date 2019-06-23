@@ -52,7 +52,7 @@ class Capture:
             '-w', '-',
             '-i', interface,
             '-q',
-            '-n' if self._disable_dns_resolution else '',
+            '-n' if self._disable_dns_resolution else ''
         ]
         if not filters:
             command.extend(['not', 'port', '22'])  # exclude ssh traffic -> exponential

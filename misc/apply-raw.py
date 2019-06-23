@@ -6,7 +6,7 @@ Possible return values:
     - MARKED
     - SUSPICIOUS
     - NORMAL
-    - FILTER_OUT
+    - FILTERED_OUT
 """
 
 from fg.constants import *

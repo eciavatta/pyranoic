@@ -44,10 +44,10 @@ def load_module(file_path):
     return module
 
 
-def read_packets(file_path, keep_packets=False, filters=None):
-    from pyshark import FileCapture
+def read_packets(file_path):
+    from scapy.all import rdpcap
 
-    return FileCapture(file_path, keep_packets, filters)
+    return rdpcap(file_path)
 
 
 def service_path(project_path, service_name):
@@ -79,6 +79,36 @@ def write_config(config, file_path):
 
 def file_name_match(file_path, regex_pattern):
     from os.path import basename
-    from re import match
 
-    return match(regex_pattern, basename(file_path))
+    return regex_pattern.match(basename(file_path))
+
+
+def pcap_name_to_timestamp(pcap_name, regex_pattern):
+    from datetime import datetime
+    from .constants import PCAP_DATETIME_FORMAT
+
+    pcap_datetime = regex_pattern.match(pcap_name)[2]
+    return datetime.strptime(pcap_datetime, PCAP_DATETIME_FORMAT).timestamp()
+
+
+def list_packets_chunks(project_path):
+    import re
+    from os import listdir
+    from os.path import join
+    from .constants import PACKETS_DIRNAME, PCAP_REGEX_PATTERN
+
+    pcap_regex_compiled = re.compile(PCAP_REGEX_PATTERN)
+    captures = [f for f in listdir(join(project_path, PACKETS_DIRNAME)) if file_name_match(f, pcap_regex_compiled)]
+
+    return sorted(captures, key=lambda capture_name: pcap_name_to_timestamp(capture_name, pcap_regex_compiled))
+
+
+def timestamp2hex(timestamp, precision=10000):
+    return '{:02x}'.format(int(timestamp * precision))
+
+
+def hex2timestamp(hex, precision=10000):
+    if type(hex) is str:
+        return int(hex, 16) / precision
+    else:
+        return int(hex) / precision

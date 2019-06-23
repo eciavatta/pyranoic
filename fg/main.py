@@ -80,11 +80,11 @@ def run(daemon, path, capture_filters):
 @click.option('--rm', is_flag=True, default=False)
 @click.option('--inline', is_flag=True, default=False)
 @click.option('--port', '-p')
-@click.option('--type', '-t', 'p_type', type=click.Choice(['tcp', 'http', 'raw']), default=None)
+@click.option('--preset', type=click.Choice(['tcp', 'http', 'raw']), default=None)
 @click.option('--path', default=getcwd(), required=True, callback=check_valid_project, show_default=True)
 @click.option('--display-filters')
 @click.argument('service-name', nargs=-1)
-def service(ctx, create, edit, rm, inline, port, p_type, path, display_filters, service_name):
+def service(ctx, create, edit, rm, inline, port, preset, path, display_filters, service_name):
     """Display, create, edit or remove services."""
 
     from .service import ServiceOptions, handle_list, handle_create, handle_edit, handle_remove
@@ -102,10 +102,10 @@ def service(ctx, create, edit, rm, inline, port, p_type, path, display_filters, 
             port = click.prompt('Service port', type=int)
         if port and display_filters:
             ctx.fail('Cannot specify both port and display-filters')
-        if not p_type:
-            p_type = click.prompt('Service type', type=click.Choice(['tcp', 'http', 'raw']))
+        if not preset:
+            preset = click.prompt('Service preset', type=click.Choice(['tcp', 'http', 'raw']))
 
-    options = ServiceOptions(inline, service_name, port, p_type, path, display_filters)
+    options = ServiceOptions(inline, service_name, port, preset, path, display_filters)
 
     if create:
         handle_create(options)

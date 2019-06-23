@@ -16,11 +16,11 @@ Run command, which capture packets and save them to disk.
 
 class ServiceOptions(object):
 
-    def __init__(self, inline, name, port, p_type, path, display_filters):
+    def __init__(self, inline, name, port, preset, path, display_filters):
         self.inline = inline
         self.name = name
         self.port = port
-        self.p_type = p_type
+        self.preset = preset
         self.path = path
         self.display_filters = display_filters
 
@@ -34,11 +34,11 @@ def handle_create(options):
 
     tmp_fd, tmp_path = mkstemp(suffix='.py')
 
-    with open(join(dirname(__file__), f'../misc/apply-{options.p_type}.py'), 'r') as default_apply_file:
+    with open(join(dirname(__file__), f'../misc/apply-{options.preset}.py'), 'r') as default_apply_file:
         with os.fdopen(tmp_fd, 'w') as tmp_file:
             tmp_file.write(default_apply_file.read())
 
-    if not options.inline and not _edit_apply_file(options.p_type, tmp_path):
+    if not options.inline and not _edit_apply_file(options.preset, tmp_path):
         os.remove(tmp_path)
         exit(0)
 
@@ -50,10 +50,10 @@ def handle_create(options):
 
     config = ConfigParser()
     if options.port is not None:
-        config['DEFAULT']['DisplayFilters'] = f'"tcp.port == {options.port}"'
-    config['DEFAULT']['Type'] = options.p_type
+        config['DEFAULT']['DisplayFilters'] = f'tcp.port == {options.port}'
+    config['DEFAULT']['Preset'] = options.preset
     if options.display_filters is not None:
-        config['DEFAULT']['DisplayFilters'] = f'"{options.display_filters}"'
+        config['DEFAULT']['DisplayFilters'] = f'{options.display_filters}'
 
     write_config(config, join(service_dir, SERVICE_CONFIG_FILENAME))
 
@@ -67,21 +67,21 @@ def handle_edit(options):
 
     config_path = join(service_dir, SERVICE_CONFIG_FILENAME)
     config = read_config(config_path)
-    p_type = options.p_type
+    preset = options.preset
 
     if options.port is not None:
-        config['DEFAULT']['DisplayFilters'] = f'"tcp.port == {options.port}"'
-    if p_type is not None:
-        config['DEFAULT']['Type'] = p_type
+        config['DEFAULT']['DisplayFilters'] = f'tcp.port == {options.port}'
+    if preset is not None:
+        config['DEFAULT']['Preset'] = preset
     else:
-        p_type = config['DEFAULT'].get('Type')
+        preset = config['DEFAULT'].get('Preset')
     if options.display_filters is not None:
-        config['DEFAULT']['DisplayFilters'] = f'"{options.display_filters}"'
+        config['DEFAULT']['DisplayFilters'] = f'{options.display_filters}'
 
     write_config(config, config_path)
 
     if not options.inline:
-        _edit_apply_file(p_type, join(service_dir, APPLY_SCRIPT_FILENAME))
+        _edit_apply_file(preset, join(service_dir, APPLY_SCRIPT_FILENAME))
 
 
 def handle_remove(options):
@@ -107,11 +107,11 @@ def handle_list(options):
     for service_name in services_names:
         service_dir = service_path(options.path, service_name)
         config = read_config(join(service_dir, SERVICE_CONFIG_FILENAME))["DEFAULT"]
-        click.echo(f'\t- {service_name} [type = "{config.get("Type")}", filters = {config.get("DisplayFilters")}]')
+        click.echo(f'\t- {service_name} [preset= "{config.get("Preset")}", filters= "{config.get("DisplayFilters")}"]')
 
 
-def _edit_apply_file(p_type, apply_file_path):
-    test_packets = read_packets(join(dirname(__file__), f'../misc/capture-{p_type}.pcap'))
+def _edit_apply_file(preset, apply_file_path):
+    test_packets = read_packets(join(dirname(__file__), f'../misc/capture-{preset}.pcap'))
     accept = False
 
     while not accept:
@@ -123,7 +123,7 @@ def _edit_apply_file(p_type, apply_file_path):
 
             for packet in test_packets:
                 result = apply_module.apply(packet)
-                if result not in [NORMAL, SUSPICIOUS, MARKED, FILTER_OUT]:
+                if result not in [NORMAL, SUSPICIOUS, MARKED, FILTERED_OUT]:
                     raise ValueError('Script returns an invalid value')
                 results.append(result)
         except Exception as e:
@@ -139,7 +139,7 @@ def _edit_apply_file(p_type, apply_file_path):
         click.echo(f'Normal: {sum(x == NORMAL for x in results)}')
         click.echo(f'Suspicious: {sum(x == SUSPICIOUS for x in results)}')
         click.echo(f'Marked: {sum(x == MARKED for x in results)}')
-        click.echo(f'FilterOut: {sum(x == FILTER_OUT for x in results)}')
+        click.echo(f'FilterOut: {sum(x == FILTERED_OUT for x in results)}')
 
         accept = click.confirm('Confirm the script provided?', default=True)
 
