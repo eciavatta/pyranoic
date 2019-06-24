@@ -50,3 +50,6 @@ class Preset:
 
     def describe(self, identifier, out_file):
         pass
+
+    def generate_exploit(self, identifier, out_file):
+        pass

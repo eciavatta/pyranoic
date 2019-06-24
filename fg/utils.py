@@ -165,3 +165,23 @@ def hex2timestamp(hex_str, precision=10000):
         return int(hex_str, 16) / precision
     else:
         return int(hex_str) / precision
+
+
+def pack_string(b_str):
+    import string
+    from struct import pack
+
+    if type(b_str) is bytes:
+        text = b_str.decode()
+    else:
+        text = b_str
+
+    result = ''
+    for i in range(len(text)):
+        if text[i] in string.ascii_letters + string.digits:
+            result += text[i]
+        else:
+            result += pack('B', b_str[i]).decode()
+
+    return result
+

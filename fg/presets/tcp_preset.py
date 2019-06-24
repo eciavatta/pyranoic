@@ -77,14 +77,62 @@ class TcpPreset(Preset):
         del self._close_handshaking[connection_hash]
 
         stream_identifier = timestamp2hex(packets[0].time)[3:] + timestamp2hex(packets[-1].time)[3:] + connection_hash
+        duration = '{:.3f}'.format(packets[-1].time - packets[0].time)
         self.evaluate_and_submit(stream_identifier, packets[0].time, conversation,
-                                 f'TCP ports: {ports[0]} → {ports[1]}')
+                                 f'TCP ports: {ports[0]} → {ports[1]}, duration: {duration} s')
 
     def describe(self, identifier, out_file):
         if len(identifier) != 24:
             click.echo('Invalid stream identifier', err=True)
             return
 
+        conversation = self._load_conversation(identifier)
+
+        if not out_file:
+            for entry in conversation:
+                sys.stdout.write(click.style(entry[1].decode('utf-8'), fg='red' if entry[0] else 'blue'))
+        else:
+            with open(out_file, 'wb') as file:
+                for entry in conversation:
+                    file.write('' if entry[0] else '\t' + entry[1] + '\n')
+
+    def generate_exploit(self, identifier, out_file):
+        if len(identifier) != 24:
+            click.echo('Invalid stream identifier', err=True)
+            return
+
+        conversation, info = self._load_conversation(identifier, return_info=True)
+
+        info = info[1][8:-1].decode('utf-8').split(':')  # format = "Node 1: 10.10.8.1:9876\n"
+        exploit = 'from pwn import *\n\n'
+        exploit += f'io = remote(\'{info[0]}\', {info[1]})\n'
+
+        exploit.splitlines()
+        for i in range(len(conversation)):
+            current_message = conversation[i][1]
+
+            if not conversation[i][0]:  # is receiver
+                if i+1 < len(conversation) and conversation[i+1][0]:  # if next message is from initiator
+                    if len(conversation[i][1]) > 8:
+                        limit = conversation[i][1][-8:]
+                    else:
+                        limit = conversation[i][1]
+                    exploit += f'io.recvuntil({limit})\n'
+            else:  # is initiator
+                packed = pack_string(current_message)
+                if packed.count('\n') > 0:
+                    for msg in packed.splitlines():
+                        exploit += f'io.sendline(\'{msg}\')\n'
+                else:
+                    exploit += f'io.send(\'{packed}\')\n'
+
+        if not out_file:
+                sys.stdout.write(exploit)
+        else:
+            with open(out_file, 'w') as file:
+                file.write(exploit)
+
+    def _load_conversation(self, identifier, return_info=False):
         start_timestamp = hex2timestamp(self._timestamp_start + identifier[:8])
         end_timestamp = hex2timestamp(self._timestamp_start + identifier[8:16])
         ports = int(identifier[16:20], 16), int(identifier[20:24], 16)
@@ -95,18 +143,10 @@ class TcpPreset(Preset):
             return
 
         pipe = self._filter_join_chunks(chunks, ports)
-        conversation = self._follow_stream('-', pipe)
-
-        if not out_file:
-            for entry in conversation:
-                sys.stdout.write(click.style(entry[1].decode('utf-8'), fg='red' if entry[0] else 'blue'))
-        else:
-            with open(out_file, 'wb') as file:
-                for entry in conversation:
-                    file.write('' if entry[0] else '\t' + entry[1] + '\n')
+        return self._follow_stream('-', pipe, return_info)
 
     @staticmethod
-    def _follow_stream(file_path, stdin=None):
+    def _follow_stream(file_path, stdin=None, return_info=False):
         conversation = []
 
         ts_command = [
@@ -116,9 +156,9 @@ class TcpPreset(Preset):
             '-q'
         ]
         process = Popen(ts_command, stdin=stdin, stdout=PIPE, stderr=sys.stderr)
-        output = process.stdout.readlines()
+        tshark_output = process.stdout.readlines()
 
-        output = output[6:-1]  # remove tshark banner
+        output = tshark_output[6:-1]  # remove tshark banner
 
         for line in output:
             if chr(line[0]) == '\t':
@@ -130,6 +170,8 @@ class TcpPreset(Preset):
 
             conversation.append((is_initiator, unhexlify(raw)))
 
+        if return_info:
+            return conversation, tshark_output[4:6]
         return conversation
 
     def _filter_join_chunks(self, chunks, ports):

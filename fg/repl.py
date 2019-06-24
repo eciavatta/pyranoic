@@ -3,6 +3,8 @@ from queue import Queue
 from code import InteractiveConsole
 import sys
 import traceback
+import readline
+import rlcompleter
 
 import click
 
@@ -56,6 +58,8 @@ class Repl:
     def handle(self):
         sys.ps1 = click.style(self._service_name, fg='red') + '> '
         commands['logs']()
+        readline.set_completer(rlcompleter.Completer(commands).complete)
+        readline.parse_and_bind("tab: complete")
         InteractiveConsole(locals=commands).interact(banner='', exitmsg='')
         self._analyzer.stop()
         exit(0)
@@ -69,7 +73,7 @@ class Repl:
         state_str = click.style(STATES_NAMES[state], fg=STATES_COLORS[state])
         additional_info_str = additional_info if additional_info else 'None'
         comment_str = comment if comment else 'None'
-        log = f'[{datetime_str}] id=\'{id_str}\', | evaluation={state_str}, info=\'{additional_info_str}\', ' \
+        log = f'[{datetime_str}] id=\'{id_str}\', evaluation={state_str}, info=\'{additional_info_str}\', ' \
             f'comment=\'{comment_str}\''
 
         self._queue.put(log, block=False)
@@ -95,3 +99,11 @@ class Repl:
             return
 
         self._analyzer.get_evaluator().describe(identifier, output)
+
+    @command(name='generate_exploit', text='Generate exploit from a payload')
+    def _generate_exploit(self, identifier, output=None):
+        if type(identifier) is not str or not len(identifier) > 0:
+            click.echo('Identifier must be a string with length greater than zero', err=True)
+            return
+
+        self._analyzer.get_evaluator().generate_exploit(identifier, output)
