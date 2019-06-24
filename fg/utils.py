@@ -103,12 +103,65 @@ def list_packets_chunks(project_path):
     return sorted(captures, key=lambda capture_name: pcap_name_to_timestamp(capture_name, pcap_regex_compiled))
 
 
+def list_chunks_between_timestamps(project_path, start_timestamp, end_timestamp):
+    import re
+    from .constants import PCAP_REGEX_PATTERN
+
+    all_chunks = list_packets_chunks(project_path)
+    pcap_regex_compiled = re.compile(PCAP_REGEX_PATTERN)
+    chunks = []
+    all_chunks_len = len(all_chunks)
+
+    check_start = True
+    for i in range(all_chunks_len):
+        chunk_timestamp = pcap_name_to_timestamp(all_chunks[i], pcap_regex_compiled)
+
+        if start_timestamp > chunk_timestamp:
+            continue
+        if check_start:
+            if i-1 < 0:
+                return chunks
+            else:
+                chunks.append(all_chunks[i-1])
+                check_start = False
+        if chunk_timestamp <= end_timestamp:
+            chunks.append(all_chunks[i])
+        else:
+            return chunks
+
+
+def reduce_chunk_files(project_path, chunks):
+    """
+
+    :param project_path:
+    :param chunks:
+    :return: Tuple<file_name, is_tmp_file> or None
+    """
+
+    from os.path import join
+    from tempfile import mkstemp
+    from .constants import PACKETS_DIRNAME
+
+    if not chunks:
+        return None
+    elif len(chunks) == 1:
+        return chunks[0], False
+
+    tmp_file = mkstemp(suffix='.pcap')[1]
+    with open(tmp_file, 'wb') as file:
+        for chunk in chunks:
+            with open(join(project_path, PACKETS_DIRNAME, chunk), 'rb') as chunk_file:
+                file.write(chunk_file.read())
+
+    return tmp_file, True
+
+
 def timestamp2hex(timestamp, precision=10000):
     return '{:02x}'.format(int(timestamp * precision))
 
 
-def hex2timestamp(hex, precision=10000):
-    if type(hex) is str:
-        return int(hex, 16) / precision
+def hex2timestamp(hex_str, precision=10000):
+    if type(hex_str) is str:
+        return int(hex_str, 16) / precision
     else:
-        return int(hex) / precision
+        return int(hex_str) / precision

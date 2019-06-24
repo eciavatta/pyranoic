@@ -4,11 +4,18 @@ SUSPICIOUS = 1
 MARKED = 2
 FILTERED_OUT = 3
 
-STATES_MAP = {
+STATES_NAMES = {
     0: 'NORMAL',
     1: 'SUSPICIOUS',
     2: 'MARKED',
     3: 'FILTERED_OUT'
+}
+
+STATES_COLORS = {
+    0: 'black',
+    1: 'blue',
+    2: 'red',
+    3: 'black'
 }
 
 PROJECT_CONFIG_FILENAME = 'project.conf'

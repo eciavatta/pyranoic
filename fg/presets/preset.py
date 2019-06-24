@@ -4,25 +4,26 @@ from ..utils import fatal_error
 
 class Preset:
 
-    def __init__(self, apply_module):
+    def __init__(self, project_path, apply_module):
+        self._project_path = project_path
         self._apply_module = apply_module
         self._listener = None
 
     @staticmethod
-    def load_preset(preset_str, apply_module):
+    def load_preset(preset_str, project_path, apply_module):
         if preset_str == 'raw':
             from .raw_preset import RawPreset
-            return RawPreset(apply_module)
+            return RawPreset(project_path, apply_module)
         elif preset_str == 'tcp':
             from .tcp_preset import TcpPreset
-            return TcpPreset(apply_module)
+            return TcpPreset(project_path, apply_module)
         elif preset_str == 'tcp':
             from .http_preset import HttpPreset
-            return HttpPreset(apply_module)
+            return HttpPreset(project_path, apply_module)
         else:
             fatal_error(f'Invalid preset: {preset_str}')
 
-    def evaluate_and_submit(self, identifier, timestamp, payload):
+    def evaluate_and_submit(self, identifier, timestamp, payload, additional_info=None):
         try:
             evaluation = self._apply_module.apply(payload)
 
@@ -39,10 +40,13 @@ class Preset:
         except Exception as e:
             return self._listener.evaluation_exception(e)
 
-        self._listener.evaluation(identifier, timestamp, state, comment)
+        self._listener.evaluation(identifier, timestamp, state, additional_info, comment)
 
     def attach_listener(self, listener):
         self._listener = listener
 
     def analyze_packet(self, packet):
+        pass
+
+    def describe(self, identifier, out_file):
         pass

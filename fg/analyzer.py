@@ -12,9 +12,10 @@ from .utils import *
 
 class Analyzer(Thread):
 
-    def __init__(self, service_dir, preset_str, filters):
+    def __init__(self, project_path, service_name, preset_str, filters):
         super().__init__(daemon=True)
-        self._service_dir = service_dir
+        self._project_path = project_path
+        self._service_name = service_name
         self._preset_str = preset_str
         self._filters = filters
         self._queue = Queue()
@@ -39,9 +40,10 @@ class Analyzer(Thread):
 
     def _init(self):
         try:
-            apply_module = load_module(join(self._service_dir, APPLY_SCRIPT_FILENAME))
+            apply_module = load_module(join(self._project_path, SERVICES_DIRNAME, self._service_name,
+                                            APPLY_SCRIPT_FILENAME))
         except Exception as e:
             click.echo('Cannot load apply script file:')
             return fatal_error(str(e))
 
-        self._preset = Preset.load_preset(self._preset_str, apply_module)
+        self._preset = Preset.load_preset(self._preset_str, self._project_path, apply_module)

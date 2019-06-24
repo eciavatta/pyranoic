@@ -24,12 +24,13 @@ class WatchOptions(object):
 
 def handle(options):
     service_dir = service_path(options.path, options.service_name)
-    if not isdir(service_dir):
+    if not isdir(service_path(options.path, options.service_name)):
         fatal_error(f'Cannot find service {options.service_name}')
 
     config = read_config(join(service_dir, SERVICE_CONFIG_FILENAME))
     config['DEFAULT'].get('DisplayFilters')
-    analyzer = Analyzer(service_dir, config['DEFAULT'].get('Preset'), config['DEFAULT'].get('DisplayFilters'))
+    analyzer = Analyzer(options.path, options.service_name, config['DEFAULT'].get('Preset'),
+                        config['DEFAULT'].get('DisplayFilters'))
     global _analyze_callback
     global _pcap_regex_compiled
     global _last_chunk  # used to track the last chunk completed to analyze
