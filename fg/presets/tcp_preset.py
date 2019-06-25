@@ -64,16 +64,19 @@ class TcpPreset(Preset):
 
     def _evaluate_stream(self, connection_hash):
         packets = self._connections[connection_hash]
-        ports = int(connection_hash[:4], 16), int(connection_hash[4:], 16)
         tmp_file = mkstemp(suffix='.pcap')[1]
         wrpcap(tmp_file, packets)
 
         conversation = self._follow_stream(tmp_file)
         remove(tmp_file)
 
+        self._evaluate_conversation(connection_hash, packets, conversation)
+
         del self._connections[connection_hash]
         del self._close_handshaking[connection_hash]
 
+    def _evaluate_conversation(self, connection_hash, packets, conversation):
+        ports = int(connection_hash[:4], 16), int(connection_hash[4:], 16)
         stream_identifier = timestamp2hex(packets[0].time)[3:] + timestamp2hex(packets[-1].time)[3:] + connection_hash
         duration = '{:.3f}'.format(packets[-1].time - packets[0].time)
         self.evaluate_and_submit(stream_identifier, packets[0].time, conversation,

@@ -36,7 +36,7 @@ class Analyzer(Thread):
             except Empty:
                 continue
 
-            sniff(offline=file_path, store=False, prn=self._preset.analyze_packet)
+            sniff(offline=file_path, store=False, prn=self._preset.filter_analyze_packet)
 
     def stop(self):
         if self._watcher:

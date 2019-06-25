@@ -25,7 +25,7 @@ class Preset:
 
     def evaluate_and_submit(self, identifier, timestamp, payload, additional_info=None):
         try:
-            evaluation = self._evaluation_module.evaluate(payload)
+            evaluation = self._evaluation_module.evaluate_function(payload)
 
             if (type(evaluation) is not int and type(evaluation) is not tuple) or (
                 type(evaluation) is tuple and (
@@ -47,11 +47,15 @@ class Preset:
     def attach_listener(self, listener):
         self._listener = listener
 
-    def analyze_packet(self, packet):
-        pass
+    def filter_analyze_packet(self, packet):
+        if self._evaluation_module.filter_function(packet):
+            self.analyze_packet(packet)
 
     def describe(self, identifier, out_file):
         pass
 
     def generate_exploit(self, identifier, out_file):
+        pass
+
+    def analyze_packet(self, packet):
         pass

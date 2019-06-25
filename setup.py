@@ -9,7 +9,8 @@ setup(
         'click',
         'scapy',
         'watchdog',
-        'dateparser'
+        'dateparser',
+        'CaseInsensitiveDict'
     ],
     entry_points='''
         [console_scripts]

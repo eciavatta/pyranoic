@@ -233,7 +233,7 @@ class Repl:
                 preset.attach_listener(self)
 
                 for packet in test_packets:
-                    preset.analyze_packet(packet)
+                    preset.filter_analyze_packet(packet)
             except Exception as e:
                 click.echo('An error occurred while executing the provided script:')
                 click.secho(str(e), err=True, fg='red')

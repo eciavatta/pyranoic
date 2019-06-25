@@ -29,6 +29,6 @@ EVALUATE_SCRIPT_FILENAME = 'evaluation-script.py'
 CAPTURE_FILENAME = 'capture.pcap'
 MAX_CAPTURE_FILESIZE = 64*1000
 
-PCAP_REGEX_PATTERN = rf"^capture_(\d{{5}})_(\d{{14}})\.pcap$"
+PCAP_REGEX_PATTERN = rf'^capture_(\d{{5}})_(\d{{14}})\.pcap$'
 PCAP_DATETIME_FORMAT = '%Y%m%d%H%M%S'
 
