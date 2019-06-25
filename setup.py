@@ -8,7 +8,8 @@ setup(
     install_requires=[
         'click',
         'scapy',
-        'watchdog'
+        'watchdog',
+        'dateparser'
     ],
     entry_points='''
         [console_scripts]

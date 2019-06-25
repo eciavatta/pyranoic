@@ -17,7 +17,7 @@ class Preset:
         elif preset_str == 'tcp':
             from .tcp_preset import TcpPreset
             return TcpPreset(project_path, apply_module)
-        elif preset_str == 'tcp':
+        elif preset_str == 'http':
             from .http_preset import HttpPreset
             return HttpPreset(project_path, apply_module)
         else:

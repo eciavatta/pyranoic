@@ -1,8 +1,7 @@
 import sys
 from binascii import unhexlify
 from datetime import datetime
-from os import devnull, remove
-from os.path import join
+from os import remove
 from subprocess import Popen, PIPE
 from tempfile import mkstemp
 
@@ -10,7 +9,6 @@ import click
 from scapy.all import wrpcap
 
 from .preset import Preset
-from ..constants import *
 from ..utils import *
 
 
@@ -142,7 +140,7 @@ class TcpPreset(Preset):
             click.echo('Cannot find the packet capture related to that identifier')
             return
 
-        pipe = self._filter_join_chunks(chunks, ports)
+        pipe = self._filter_chunks(chunks, ports)
         return self._follow_stream('-', pipe, return_info)
 
     @staticmethod
@@ -174,7 +172,8 @@ class TcpPreset(Preset):
             return conversation, tshark_output[4:6]
         return conversation
 
-    def _filter_join_chunks(self, chunks, ports):
+    @staticmethod
+    def _filter_chunks(chunks, ports):
         ts_command = [
             '/usr/bin/tshark',  # TODO: replace hardcoded path
             '-r', '-',
@@ -183,8 +182,8 @@ class TcpPreset(Preset):
             'tcp.port', '==', f'{ports[0]}', 'and', 'tcp.port', '==', f'{ports[1]}'
         ]
         process = Popen(ts_command, stdin=PIPE, stdout=PIPE, stderr=sys.stderr)
-        for chunk_name in chunks:
-            with open(join(self._project_path, PACKETS_DIRNAME, chunk_name), 'rb') as chunk_file:
+        for chunk_path in chunks:
+            with open(chunk_path, 'rb') as chunk_file:
                 process.stdin.write(chunk_file.read())
         process.stdin.close()
 
@@ -193,4 +192,3 @@ class TcpPreset(Preset):
     @staticmethod
     def _port_hash(port):
         return "{0:0{1}x}".format(port, 4)
-

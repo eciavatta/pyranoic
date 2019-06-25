@@ -1,49 +1,59 @@
+import re
+from datetime import datetime
 from os.path import join
-from queue import Queue
+from queue import Queue, Empty
 from threading import Thread
+from time import sleep
 
-import click
 from scapy.all import sniff
 
+from fg.watcher import WatcherEventHandler, Watcher
 from .constants import *
-from .presets.preset import Preset
 from .utils import *
 
 
 class Analyzer(Thread):
 
-    def __init__(self, project_path, service_name, preset_str, filters):
+    def __init__(self, project_path, preset, stop_timestamp):
         super().__init__(daemon=True)
         self._project_path = project_path
-        self._service_name = service_name
-        self._preset_str = preset_str
-        self._filters = filters
+        self._preset = preset
+        self._stop_timestamp = stop_timestamp
         self._queue = Queue()
         self._stopped = False
-        self._preset = None
-
-        self._init()
+        self._pcap_regex_compiled = re.compile(PCAP_REGEX_PATTERN)
+        self._last_chunk = None  # used to track the last chunk completed to analyze
+        self._watcher = None
 
     def run(self):
-        while not self._stopped:
-            file_path = self._queue.get(block=True)
+        handler = WatcherEventHandler(on_created=self._process_file)
+        self._watcher = Watcher(join(self._project_path, PACKETS_DIRNAME), handler)
+        self._watcher.start()
+
+        while not self._stopped and (not self._stop_timestamp or datetime.now().timestamp() < self._stop_timestamp):
+            try:
+                file_path = self._queue.get(block=True, timeout=1)
+            except Empty:
+                continue
+
             sniff(offline=file_path, store=False, prn=self._preset.analyze_packet)
 
-    def process_file(self, file_path):
-        self._queue.put(file_path, block=False)
-
     def stop(self):
+        if self._watcher:
+            self._watcher.stop()
         self._stopped = True
 
-    def get_evaluator(self):
-        return self._preset
+    def set_initial_chunks(self, chunks):
+        for chunk in chunks:
+            self._queue.put(chunk, block=False)
 
-    def _init(self):
-        try:
-            apply_module = load_module(join(self._project_path, SERVICES_DIRNAME, self._service_name,
-                                            APPLY_SCRIPT_FILENAME))
-        except Exception as e:
-            click.echo('Cannot load apply script file:')
-            return fatal_error(str(e))
-
-        self._preset = Preset.load_preset(self._preset_str, self._project_path, apply_module)
+    def _process_file(self, capture_path):
+        print(capture_path)
+        if file_name_match(capture_path, self._pcap_regex_compiled):
+            tmp = self._last_chunk
+            self._last_chunk = capture_path
+            if tmp:
+                sleep(3)  # precaution (wait tshark close file descriptor for old chunk)
+                self._queue.put(capture_path, block=False)
+        else:
+            raise OSError('An invalid file is created on packets directory.')

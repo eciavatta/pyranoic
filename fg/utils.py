@@ -105,7 +105,8 @@ def list_packets_chunks(project_path):
 
 def list_chunks_between_timestamps(project_path, start_timestamp, end_timestamp):
     import re
-    from .constants import PCAP_REGEX_PATTERN
+    from os.path import join
+    from .constants import PCAP_REGEX_PATTERN, PACKETS_DIRNAME
 
     all_chunks = list_packets_chunks(project_path)
     pcap_regex_compiled = re.compile(PCAP_REGEX_PATTERN)
@@ -117,7 +118,11 @@ def list_chunks_between_timestamps(project_path, start_timestamp, end_timestamp)
         chunk_timestamp = pcap_name_to_timestamp(all_chunks[i], pcap_regex_compiled)
 
         if start_timestamp > chunk_timestamp:
-            continue
+            if i == all_chunks_len-1:
+                chunks.append(all_chunks[i])
+                break
+            else:
+                continue
         if check_start:
             if i-1 < 0:
                 return chunks
@@ -127,7 +132,9 @@ def list_chunks_between_timestamps(project_path, start_timestamp, end_timestamp)
         if chunk_timestamp <= end_timestamp:
             chunks.append(all_chunks[i])
         else:
-            return chunks
+            break
+
+    return [join(project_path, PACKETS_DIRNAME, c) for c in chunks]
 
 
 def reduce_chunk_files(project_path, chunks):
@@ -185,3 +192,18 @@ def pack_string(b_str):
 
     return result
 
+
+def parse_timestamp(data):
+    from dateparser import parse
+    from datetime import datetime
+
+    if type(data) is str:
+        return parse(data).timestamp()
+    elif type(data) is int:
+        return float(data)
+    elif type(data) is float:
+        return data
+    elif type(data) is datetime:
+        return data.timestamp()
+
+    return None
