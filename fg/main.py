@@ -76,20 +76,17 @@ def run(daemon, path, capture_filters):
 @cli.command()
 @click.pass_context
 @click.option('--create', '-c', is_flag=True, default=False)
-@click.option('--edit', '-e', is_flag=True, default=False)
 @click.option('--rm', is_flag=True, default=False)
-@click.option('--inline', is_flag=True, default=False)
-@click.option('--port', '-p')
 @click.option('--preset', type=click.Choice(['tcp', 'http', 'raw']), default=None)
 @click.option('--path', default=getcwd(), required=True, callback=check_valid_project, show_default=True)
-@click.option('--display-filters')
 @click.argument('service-name', nargs=-1)
-def service(ctx, create, edit, rm, inline, port, preset, path, display_filters, service_name):
-    """Display, create, edit or remove services."""
+def service(ctx, create, rm, preset, path, service_name):
+    """Display, create or remove services."""
 
-    from .service import ServiceOptions, handle_list, handle_create, handle_edit, handle_remove
+    from .service import ServiceOptions, handle_list, handle_create, handle_remove
+    from .constants import AVAILABLE_PRESETS
 
-    if any(v is True for v in [create, edit, rm]):
+    if create or rm:
         if not service_name:
             ctx.fail('Argument SERVICE_NAME is required')
         elif len(service_name) > 1:
@@ -98,19 +95,13 @@ def service(ctx, create, edit, rm, inline, port, preset, path, display_filters, 
             service_name = service_name[0]
 
     if create:
-        if not port and not display_filters:
-            port = click.prompt('Service port', type=int)
-        if port and display_filters:
-            ctx.fail('Cannot specify both port and display-filters')
         if not preset:
-            preset = click.prompt('Service preset', type=click.Choice(['tcp', 'http', 'raw']))
+            preset = click.prompt('Service preset', type=click.Choice(AVAILABLE_PRESETS))
 
-    options = ServiceOptions(inline, service_name, port, preset, path, display_filters)
+    options = ServiceOptions(service_name, preset, path)
 
     if create:
         handle_create(options)
-    elif edit:
-        handle_edit(options)
     elif rm:
         handle_remove(options)
     else:

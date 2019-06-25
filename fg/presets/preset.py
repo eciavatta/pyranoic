@@ -4,28 +4,28 @@ from ..utils import fatal_error
 
 class Preset:
 
-    def __init__(self, project_path, apply_module):
+    def __init__(self, project_path, evaluation_module):
         self._project_path = project_path
-        self._apply_module = apply_module
+        self._evaluation_module = evaluation_module
         self._listener = None
 
     @staticmethod
-    def load_preset(preset_str, project_path, apply_module):
+    def load_preset(preset_str, project_path, evaluation_module):
         if preset_str == 'raw':
             from .raw_preset import RawPreset
-            return RawPreset(project_path, apply_module)
+            return RawPreset(project_path, evaluation_module)
         elif preset_str == 'tcp':
             from .tcp_preset import TcpPreset
-            return TcpPreset(project_path, apply_module)
+            return TcpPreset(project_path, evaluation_module)
         elif preset_str == 'http':
             from .http_preset import HttpPreset
-            return HttpPreset(project_path, apply_module)
+            return HttpPreset(project_path, evaluation_module)
         else:
             fatal_error(f'Invalid preset: {preset_str}')
 
     def evaluate_and_submit(self, identifier, timestamp, payload, additional_info=None):
         try:
-            evaluation = self._apply_module.apply(payload)
+            evaluation = self._evaluation_module.evaluate(payload)
 
             if (type(evaluation) is not int and type(evaluation) is not tuple) or (
                 type(evaluation) is tuple and (
@@ -36,7 +36,9 @@ class Preset:
             comment = None if type(evaluation) is int else evaluation[1]
 
             if state not in [NORMAL, SUSPICIOUS, MARKED, FILTERED_OUT]:
-                raise ValueError('Invalid return value in apply script (invalid state)')
+                raise ValueError('Invalid return value in evaluation script (invalid state)')
+            if state == FILTERED_OUT:
+                return
         except Exception as e:
             return self._listener.evaluation_exception(e)
 

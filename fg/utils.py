@@ -37,7 +37,7 @@ def fatal_error(message):
 def load_module(file_path):
     from importlib.util import spec_from_file_location, module_from_spec
 
-    spec = spec_from_file_location("apply_module", file_path)
+    spec = spec_from_file_location("evaluation_module", file_path)
     module = module_from_spec(spec)
     spec.loader.exec_module(module)
 
@@ -105,35 +105,33 @@ def list_packets_chunks(project_path):
 
 def list_chunks_between_timestamps(project_path, start_timestamp, end_timestamp):
     import re
-    from os.path import join
-    from .constants import PCAP_REGEX_PATTERN, PACKETS_DIRNAME
+    from .constants import PCAP_REGEX_PATTERN
 
     all_chunks = list_packets_chunks(project_path)
     pcap_regex_compiled = re.compile(PCAP_REGEX_PATTERN)
     chunks = []
-    all_chunks_len = len(all_chunks)
 
-    check_start = True
-    for i in range(all_chunks_len):
-        chunk_timestamp = pcap_name_to_timestamp(all_chunks[i], pcap_regex_compiled)
+    prev_chunk = None
+    for chunk in all_chunks:
+        chunk_timestamp = pcap_name_to_timestamp(chunk, pcap_regex_compiled)
 
-        if start_timestamp > chunk_timestamp:
-            if i == all_chunks_len-1:
-                chunks.append(all_chunks[i])
+        if chunk_timestamp >= start_timestamp:
+            if chunk_timestamp <= end_timestamp:
+                chunks.append(chunk)
+            else:
                 break
-            else:
-                continue
-        if check_start:
-            if i-1 < 0:
-                return chunks
-            else:
-                chunks.append(all_chunks[i-1])
-                check_start = False
-        if chunk_timestamp <= end_timestamp:
-            chunks.append(all_chunks[i])
         else:
-            break
+            prev_chunk = chunk
 
+    if prev_chunk:
+        chunks.insert(0, prev_chunk)
+
+    return chunks
+
+
+def full_chunks_path(project_path, chunks):
+    from os.path import join
+    from .constants import PACKETS_DIRNAME
     return [join(project_path, PACKETS_DIRNAME, c) for c in chunks]
 
 
@@ -207,3 +205,8 @@ def parse_timestamp(data):
         return data.timestamp()
 
     return None
+
+
+def timestamp2str(timestamp):
+    from datetime import datetime
+    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S.%f")

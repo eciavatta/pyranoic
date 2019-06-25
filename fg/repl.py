@@ -4,12 +4,13 @@ import sys
 import traceback
 from code import InteractiveConsole
 from datetime import datetime
-from os.path import join
+from os import remove
+from os.path import join, dirname
 from queue import Queue
+from tempfile import mkstemp
 from time import sleep
 
 import click
-import dateparser
 
 from fg.presets.preset import Preset
 from .analyzer import Analyzer
@@ -60,6 +61,7 @@ class Repl:
         self._queue = Queue()
         self._analyzer = None
         self._preset = None
+        self._evaluation_script_path = join(project_path, SERVICES_DIRNAME, service_name, EVALUATE_SCRIPT_FILENAME)
 
         global instance
         instance = self
@@ -76,10 +78,7 @@ class Repl:
             commands['stop_analyze']()
 
     def evaluation(self, identifier, timestamp, state, additional_info = None, comment = None):
-        if state == FILTERED_OUT:
-            return
-
-        datetime_str = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S.%f")
+        datetime_str = timestamp2str(timestamp)
         id_str = click.style(identifier, bold=True)
         state_str = click.style(STATES_NAMES[state], fg=STATES_COLORS[state])
         additional_info_str = additional_info if additional_info else 'None'
@@ -87,11 +86,17 @@ class Repl:
         log = f'[{datetime_str}] id=\'{id_str}\', evaluation={state_str}, info=\'{additional_info_str}\', ' \
             f'comment=\'{comment_str}\''
 
-        self._queue.put(log, block=False)
+        if not self._analyzer:
+            click.echo(log)
+        else:
+            self._queue.put(log, block=False)
 
     def evaluation_exception(self, exception):
-        print(exception)
-        traceback.print_stack()
+        click.secho('An error occurred while evaluating a payload in the evaluation script:')
+        click.secho(str(exception) + '\n', fg='red')
+
+        if self._analyzer:
+            traceback.print_stack()
 
     @command(name='logs', text='Enter in live logging mode and display evaluations on screen')
     def _logs(self):
@@ -130,15 +135,14 @@ class Repl:
         if initial_chunks is None:
             return click.echo('Cannot find captures in the range indicated.')
 
-        evaluation_script_path = join(self._project_path, SERVICES_DIRNAME, self._service_name, APPLY_SCRIPT_FILENAME)
-        evaluation_module = load_module(evaluation_script_path)
-        self._preset = Preset.load_preset(self._preset_str, self._project_path, evaluation_module)
+        self._preset = self._load_preset()
         self._preset.attach_listener(self)
         self._analyzer = Analyzer(self._project_path, self._preset, end)
         self._analyzer.set_initial_chunks(initial_chunks)
         self._analyzer.start()
 
-        click.echo('Starting analyzing captures..')
+        click.echo(f'Starting analyzing captures from {timestamp2str(start) if start else "now"} to '
+                   f'{timestamp2str(end) if end else "manually stop"}')
 
     @command(name='stop_analyze', text='Stop analyze captures')
     def _stop_analyze(self):
@@ -160,7 +164,96 @@ class Repl:
         else:
             click.echo('No capture found.')
 
+    @command(name='find_captures', text='Display captures in a time interval')
+    def _find_captures(self, start=None, end=None):
+        start = parse_timestamp(start)
+        end = parse_timestamp(end)
+        click.echo(f'Captures from {timestamp2str(start) if start else "now"} to '
+                   f'{timestamp2str(end) if end else "now"} are:')
+        click.echo(self._get_chunks_between(start, end))
+
+    @command(name='edit_eval_func', text='Edit the function to evaluate payloads')
+    def _edit_evaluation_script(self, start=None, end=None):
+        if self._analyzer:
+            click.echo('It is not possible to modify the evaluation script when there is an active analysis.')
+            return click.echo('You can stop an analysis with stop_analyze()')
+
+        if start:
+            start = parse_timestamp(start)
+            end = parse_timestamp(end)
+            chunks = self._get_chunks_between(start, end)
+        else:
+            chunks = None
+
+        test_packets = self._load_test_packets(chunks)
+        if self._edit_check_evaluation_script(test_packets):
+            click.echo('Evaluation script changed.')
+        else:
+            click.echo('Changes to the evaluation script have been canceled.')
+
+    @command(name='service_preset', text='Print the service preset')
+    def _service_preset(self):
+        click.echo(self._preset_str)
+
     def _get_chunks_between(self, start=None, end=None):
-        return list_chunks_between_timestamps(self._project_path,
+        chunks = list_chunks_between_timestamps(self._project_path,
                                               start if start else datetime.now().timestamp(),
                                               end if end else datetime.now().timestamp())
+        return full_chunks_path(self._project_path, chunks)
+
+    def _load_test_packets(self, chunks=None):
+        if not chunks:
+            chunks = [join(dirname(__file__), f'../misc/capture-{self._preset_str}.pcap')]
+
+        test_packets = []
+        for chunk in chunks:
+            test_packets.extend(read_packets(chunk))
+
+        return test_packets
+
+    def _load_preset(self, evaluation_script=None):
+        if not evaluation_script:
+            evaluation_script = self._evaluation_script_path
+        evaluation_module = load_module(evaluation_script)
+        return Preset.load_preset(self._preset_str, self._project_path, evaluation_module)
+
+    def _edit_check_evaluation_script(self, test_packets):
+        accept = False
+
+        tmp_path = mkstemp(suffix='.py')[1]
+        with open(self._evaluation_script_path, 'r') as evaluation_file:
+            with open(tmp_path, 'w') as tmp_file:
+                tmp_file.write(evaluation_file.read())
+
+        while not accept:
+            click.edit(filename=tmp_path)
+
+            try:
+                preset = self._load_preset(tmp_path)
+                preset.attach_listener(self)
+
+                for packet in test_packets:
+                    preset.analyze_packet(packet)
+            except Exception as e:
+                click.echo('An error occurred while executing the provided script:')
+                click.secho(str(e), err=True, fg='red')
+
+                if click.confirm('Do you want to retry?', default=True):
+                    continue
+                else:
+                    remove(tmp_path)
+                    return False
+
+            accept = click.confirm('Confirm the script provided?', default=True)
+            if not accept:
+                retry = click.confirm('Do you want to retry?', default=True)
+                if not retry:
+                    remove(tmp_path)
+                    return False
+
+        with open(tmp_path, 'r') as tmp_file:
+            with open(self._evaluation_script_path, 'w') as evaluation_file:
+                evaluation_file.write(tmp_file.read())
+        remove(tmp_path)
+
+        return True

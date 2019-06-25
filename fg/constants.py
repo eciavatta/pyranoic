@@ -18,11 +18,13 @@ STATES_COLORS = {
     3: 'black'
 }
 
+AVAILABLE_PRESETS = ['tcp', 'http', 'raw']
+
 PROJECT_CONFIG_FILENAME = 'project.conf'
 PACKETS_DIRNAME = 'packets'
 SERVICES_DIRNAME = 'services'
 SERVICE_CONFIG_FILENAME = 'service.conf'
-APPLY_SCRIPT_FILENAME = 'apply-script.py'
+EVALUATE_SCRIPT_FILENAME = 'evaluation-script.py'
 
 CAPTURE_FILENAME = 'capture.pcap'
 MAX_CAPTURE_FILESIZE = 64*1000

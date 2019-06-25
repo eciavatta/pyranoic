@@ -14,8 +14,8 @@ from ..utils import *
 
 class TcpPreset(Preset):
 
-    def __init__(self, project_path, apply_module):
-        super().__init__(project_path, apply_module)
+    def __init__(self, project_path, evaluation_module):
+        super().__init__(project_path, evaluation_module)
         self._timestamp_start = timestamp2hex(datetime.now().timestamp())[0:3]
         self._connections = {}
         self._start_handshaking = {}
@@ -125,7 +125,7 @@ class TcpPreset(Preset):
                     exploit += f'io.send(\'{packed}\')\n'
 
         if not out_file:
-                sys.stdout.write(exploit)
+            sys.stdout.write(exploit)
         else:
             with open(out_file, 'w') as file:
                 file.write(exploit)
@@ -136,6 +136,7 @@ class TcpPreset(Preset):
         ports = int(identifier[16:20], 16), int(identifier[20:24], 16)
 
         chunks = list_chunks_between_timestamps(self._project_path, start_timestamp, end_timestamp)
+        chunks = full_chunks_path(self._project_path, chunks)
         if len(chunks) == 0:
             click.echo('Cannot find the packet capture related to that identifier')
             return

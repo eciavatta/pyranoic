@@ -1,6 +1,6 @@
 
 """
-When a packet is captured the apply_raw function is called.
+When a packet is captured the evaluate function is called.
 
 Possible return values:
     - MARKED
@@ -12,6 +12,6 @@ Possible return values:
 from fg.constants import *
 
 
-def apply(conversation):
-    
+def evaluate(conversation):
+
     return NORMAL

@@ -48,7 +48,6 @@ class Analyzer(Thread):
             self._queue.put(chunk, block=False)
 
     def _process_file(self, capture_path):
-        print(capture_path)
         if file_name_match(capture_path, self._pcap_regex_compiled):
             tmp = self._last_chunk
             self._last_chunk = capture_path
