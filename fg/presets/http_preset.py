@@ -17,29 +17,57 @@ class HttpPreset(TcpPreset):
         super().__init__(project_path, evaluation_module)
 
     def _evaluate_conversation(self, connection_hash, packets, conversation):
-        timestamp = packets[0].time
-
-        prev_request = None
+        requests = []
+        current_request = None
+        current_request_index = -1
+        current_response = None
+        current_response_index = -1
         for i in range(len(conversation)):
             is_request = conversation[i][0]
             message = conversation[i][1]
 
             if is_request:
-                if prev_request:
-                    self.evaluate_and_submit(prev_request.identifier + 'ff', prev_request.timestamp,
-                                             (prev_request, None), 'Nope')
+                if current_response:
+                    requests.append((current_request, current_request_index, current_response, current_response_index))
+                    current_request = None
+                    current_request_index = -1
+                    current_response = None
+                    current_response_index = -1
 
-                identifier = timestamp2hex(packets[0].time)[3:] + timestamp2hex(packets[-1].time)[3:]
-                identifier += connection_hash + self._sequence_hash(i)
-                prev_request = HttpRequest.try_parse(identifier, timestamp, message)
+                if not current_request:
+                    current_request = message
+                    current_request_index = i
+                else:
+                    current_request += message
             else:
-                if not prev_request:
-                    continue
+                if not current_response:
+                    current_response = message
+                    current_response_index = i
+                else:
+                    current_response += message
 
-                response = HttpResponse.try_parse(message)
-                self.evaluate_and_submit(prev_request.identifier + self._sequence_hash(i), prev_request.timestamp,
-                                         (prev_request, response), 'Nope')
-                prev_request = None
+        if current_request or current_response:
+            requests.append((current_request, current_request_index, current_response, current_response_index))
+
+        for req_res in requests:
+            request_index = req_res[1]
+            response_index = req_res[3]
+            identifier = timestamp2hex(packets[0].time)[3:] + timestamp2hex(packets[-1].time)[3:]
+            identifier += connection_hash + self._sequence_hash(request_index) + self._sequence_hash(response_index)
+
+            try:
+                request = HttpRequest.try_parse(identifier, packets[0].time, req_res[0]) if req_res[0] else None
+                response = HttpResponse.try_parse(req_res[2]) if req_res[0] else None
+            except Exception as e:
+                return self.exceptionally_submit(f'Error in parsing request/response: {str(e)}', identifier,
+                                                 packets[0].time)
+
+            additional_info = ''
+            additional_info += request.__repr__() if request else '@Nope'
+            additional_info += ' → '
+            additional_info += response.__repr__() if response else '@Nope'
+
+            self.evaluate_and_submit(identifier, packets[0].time, (request, response), additional_info)
 
     def describe(self, identifier, out_file):
         if len(identifier) != 28:
@@ -52,19 +80,39 @@ class HttpPreset(TcpPreset):
         conversation = self._load_conversation(connection_id)
         timestamp = hex2timestamp(self._timestamp_start + identifier[:8])
 
-        if not out_file:
-            if request_index < len(conversation) and conversation[request_index][0]:
-                request = HttpRequest.try_parse(identifier, timestamp, conversation[request_index][1])
-            else:
-                request = None
+        if request_index < len(conversation):
+            request = conversation[request_index][1]
+            for i in range(request_index + 1, len(conversation)):
+                if conversation[i][0]:
+                    request += conversation[i][1]
+                else:
+                    break
+        else:
+            request = None
 
-            if response_index < len(conversation) and not conversation[response_index][0]:
-                response = HttpResponse.try_parse(conversation[response_index][1])
-            else:
-                response = None
+        if response_index < len(conversation):
+            response = conversation[response_index][1]
+            for i in range(response_index + 1, len(conversation)):
+                if not conversation[i][0]:
+                    response += conversation[i][1]
+                else:
+                    break
+        else:
+            response = None
 
-            sys.stdout.write(str(request) if request else 'No request found.')
-            sys.stdout.write(str(response) if response else 'No response found.')
+        try:
+            if request:
+                request = HttpRequest.try_parse(identifier, timestamp, request)
+            if response:
+                response = HttpResponse.try_parse(response)
+        except Exception as e:
+            sys.stderr.write('Exception while parsing request/response')
+            sys.stderr.write(str(e))
+
+        sys.stdout.write(str(request) if request else 'No request found.')
+        sys.stdout.write(str(response) if response else 'No response found.')
+
+        return request, response
 
     @staticmethod
     def _sequence_hash(sequence_index):
@@ -93,26 +141,21 @@ class HttpRequest:
             string += f'{key.title()}: {value}\r\n'
         string += '\r\n'
 
-        #if self.body:
-        #    string += self.body.decode() #_decoded()
+        return string
+
+    def __repr__(self):
+        string = f'*Request* {self.method} '
+        if 'host' in self.headers:
+            string += self.headers['host']
+        string += self.url
 
         return string
 
     def body_decoded(self):
-
-        if 'content-encoding' in self.headers:
-            content_encoding = self.headers['content-encoding'].lower()
-            if 'deflate' in content_encoding:
-                return zlib.decompress(self.body, 16 + zlib.MAX_WBITS)
-            elif 'gzip' in content_encoding:
-                buffer = io.BytesIO(self.body)
-                size = buffer.readline()
-                data = buffer.read(int(size, 16))
-                buffer.close()
-
-                return gzip.decompress(data)
-            else:
-                return self.body.decode()
+        try:
+            return self.body.decode()
+        except Exception as e:
+            return 'Cannot decode body content: ' + str(e)
 
     @staticmethod
     def try_parse(identifier, timestamp, payload):
@@ -162,26 +205,31 @@ class HttpResponse:
             string += f'{key.title()}: {value}\r\n'
         string += '\r\n'
 
-        if self.body:
-            string += self.body_decoded()
+        return string
+
+    def __repr__(self):
+        string = f'*Response* {self.status_code} {self.status_desc}'
 
         return string
 
     def body_decoded(self):
-        if 'content-encoding' in self.headers:
-            content_encoding = self.headers['content-encoding'].lower()
-            if 'deflate' in content_encoding:
-                return zlib.decompress(self.body, 16 + zlib.MAX_WBITS)
-            elif 'gzip' in content_encoding:
-                print('ok')
-                buffer = io.BytesIO(self.body)
-                #size = buffer.readline()
-                #data = buffer.read(int(size, 16))
-                #buffer.close()
-
-                return gzip.decompress(buffer.read())
+        try:
+            if 'content-encoding' in self.headers:
+                content_encoding = self.headers['content-encoding'].lower()
+                if 'deflate' in content_encoding:
+                    return zlib.decompress(self.body, 16 + zlib.MAX_WBITS).decode()
+                elif 'gzip' in content_encoding:
+                    # buffer = io.BytesIO(self.body)
+                    # size = buffer.readline()
+                    # data = buffer.read(int(size, 16))
+                    # buffer.close()
+                    return gzip.decompress(self.body).decode()
+                else:
+                    return self.body.decode()
             else:
                 return self.body.decode()
+        except Exception as e:
+            return 'Cannot decode body content: ' + str(e)
 
     @staticmethod
     def try_parse(payload):

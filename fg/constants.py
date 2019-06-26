@@ -3,19 +3,22 @@ NORMAL = 0
 SUSPICIOUS = 1
 MARKED = 2
 FILTERED_OUT = 3
+BROKEN = 4
 
 STATES_NAMES = {
     0: 'NORMAL',
     1: 'SUSPICIOUS',
     2: 'MARKED',
-    3: 'FILTERED_OUT'
+    3: 'FILTERED_OUT',
+    4: 'BROKEN'
 }
 
 STATES_COLORS = {
     0: 'black',
     1: 'blue',
     2: 'red',
-    3: 'black'
+    3: 'black',
+    4: 'yellow'
 }
 
 AVAILABLE_PRESETS = ['tcp', 'http', 'raw']

@@ -7,7 +7,7 @@ from time import sleep
 
 from scapy.all import sniff
 
-from fg.watcher import WatcherEventHandler, Watcher
+from .watcher import WatcherEventHandler, Watcher
 from .constants import *
 from .utils import *
 
@@ -45,14 +45,15 @@ class Analyzer(Thread):
 
     def set_initial_chunks(self, chunks):
         for chunk in chunks:
-            self._queue.put(chunk, block=False)
+            self._process_file(chunk, False)
 
-    def _process_file(self, capture_path):
+    def _process_file(self, capture_path, do_sleep=True):
         if file_name_match(capture_path, self._pcap_regex_compiled):
             tmp = self._last_chunk
             self._last_chunk = capture_path
             if tmp:
-                sleep(3)  # precaution (wait tshark close file descriptor for old chunk)
-                self._queue.put(capture_path, block=False)
+                if do_sleep:
+                    sleep(1)  # precaution (wait tshark close file descriptor for old chunk)
+                self._queue.put(tmp, block=False)
         else:
             raise OSError('An invalid file is created on packets directory.')

@@ -44,6 +44,9 @@ class Preset:
 
         self._listener.evaluation(identifier, timestamp, state, additional_info, comment)
 
+    def exceptionally_submit(self, message, identifier='<broken_id>', timestamp=0):
+        self._listener.evaluation(identifier, timestamp, BROKEN, message, None)
+
     def attach_listener(self, listener):
         self._listener = listener
 

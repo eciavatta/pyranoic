@@ -29,9 +29,9 @@ def command(name, text, is_method=True):
     def decorator(function):
         def wrapper(*args, **kwargs):
             if is_method:
-                function(instance, *args, **kwargs)
+                return function(instance, *args, **kwargs)
             else:
-                function(*args, **kwargs)
+                return function(*args, **kwargs)
 
         global descriptions
         global commands
@@ -113,14 +113,14 @@ class Repl:
         if type(identifier) is not str or not len(identifier) > 0:
             return click.echo('Identifier must be a string with length greater than zero', err=True)
 
-        self._preset.describe(identifier, output)
+        return self._preset.describe(identifier, output)
 
     @command(name='generate_exploit', text='Generate exploit from a payload')
     def _generate_exploit(self, identifier, output=None):
         if type(identifier) is not str or not len(identifier) > 0:
             return click.echo('Identifier must be a string with length greater than zero', err=True)
 
-        self._preset.generate_exploit(identifier, output)
+        return self._preset.generate_exploit(identifier, output)
 
     @command(name='analyze', text='Start analyze captures')
     def _analyze(self, start=None, end=None):
