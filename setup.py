@@ -3,7 +3,8 @@ from setuptools import setup, find_packages
 setup(
     name='flags-hunter',
     version='0.1',
-    packages=find_packages(),
+    packages=['fg', 'fg.presets'],
+    package_data={'fg': ['misc/*']},
     include_package_data=True,
     install_requires=[
         'click',
