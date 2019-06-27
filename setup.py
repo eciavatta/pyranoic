@@ -4,7 +4,8 @@ setup(
     name='flags-hunter',
     version='0.1',
     packages=['fg', 'fg.presets'],
-    package_data={'fg': ['misc/*']},
+    data_files=[('misc', ['misc/evaluate-http.py', 'misc/evaluate-tcp.py', 'misc/evaluate-raw.py',
+                          'misc/capture-http.pcap', 'misc/capture-tcp.pcap', 'misc/capture-raw.pcap'])],
     include_package_data=True,
     install_requires=[
         'click',
