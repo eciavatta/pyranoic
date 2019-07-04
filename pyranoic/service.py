@@ -30,7 +30,7 @@ def handle_create(options):
         fatal_error(f'Another service with name {options.name} is present')
 
     mkdir(service_dir)
-    with open(join(dirname(__file__), f'../misc/evaluate-{options.preset}.py'), 'r') as default_eval_file:
+    with open(join(dirname(__file__), f'misc/evaluate-{options.preset}.py'), 'r') as default_eval_file:
         with open(join(service_dir, EVALUATE_SCRIPT_FILENAME), 'w+') as eval_file:
             eval_file.write(default_eval_file.read())
 

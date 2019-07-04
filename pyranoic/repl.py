@@ -203,7 +203,7 @@ class Repl:
 
     def _load_test_packets(self, chunks=None):
         if not chunks:
-            chunks = [join(dirname(__file__), f'../misc/capture-{self._preset_str}.pcap')]
+            chunks = [join(dirname(__file__), f'misc/capture-{self._preset_str}.pcap')]
 
         test_packets = []
         for chunk in chunks:
