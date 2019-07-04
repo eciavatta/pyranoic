@@ -1,9 +1,9 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 setup(
-    name='flags-hunter',
-    version='0.1',
-    packages=['fg', 'fg.presets'],
+    name='pyranoic',
+    version='0.1.0',
+    packages=['pyranoic', 'pyranoic.presets'],
     data_files=[('misc', ['misc/evaluate-http.py', 'misc/evaluate-tcp.py', 'misc/evaluate-raw.py',
                           'misc/capture-http.pcap', 'misc/capture-tcp.pcap', 'misc/capture-raw.pcap'])],
     include_package_data=True,
@@ -16,6 +16,6 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        flags-hunter=fg.main:cli
+        pyranoic=pyranoic.main:cli
     ''',
 )

@@ -12,7 +12,7 @@ from time import sleep
 
 import click
 
-from fg.presets.preset import Preset
+from pyranoic.presets.preset import Preset
 from .analyzer import Analyzer
 from .constants import *
 from .utils import *

@@ -1,4 +1,4 @@
-from fg.constants import *
+from pyranoic.constants import *
 import re
 
 
